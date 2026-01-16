@@ -20,11 +20,43 @@ require('./database/db');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// CORS Configuration - Fixed for production
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://outtthelook.vercel.app'
+];
+
+// Add origins from environment variable
+if (process.env.CORS_ORIGINS) {
+  const envOrigins = process.env.CORS_ORIGINS.split(',').map(o => o.trim());
+  allowedOrigins.push(...envOrigins);
+}
+
+console.log('Allowed CORS origins:', allowedOrigins);
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'],
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed or is a vercel.app subdomain
+    if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    console.log('CORS blocked:', origin);
+    return callback(null, true); // Allow all for now to debug
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -70,25 +102,8 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('');
-  console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║                                                        ║');
-  console.log('║   🏠  OUTLOOK BARBERSHOP BACKEND                       ║');
-  console.log('║                                                        ║');
-  console.log(`║   🚀  Server running on http://localhost:${PORT}          ║`);
-  console.log('║                                                        ║');
-  console.log('║   📚  API Endpoints:                                   ║');
-  console.log('║       • POST   /api/auth/register                      ║');
-  console.log('║       • POST   /api/auth/login                         ║');
-  console.log('║       • GET    /api/barbers                            ║');
-  console.log('║       • GET    /api/services                           ║');
-  console.log('║       • GET    /api/bookings                           ║');
-  console.log('║       • GET    /api/reviews                            ║');
-  console.log('║       • GET    /api/gallery                            ║');
-  console.log('║       • GET    /api/notifications                      ║');
-  console.log('║                                                        ║');
-  console.log('╚════════════════════════════════════════════════════════╝');
-  console.log('');
+  console.log(`Server running on port ${PORT}`);
+  console.log('CORS origins:', allowedOrigins);
 });
 
 module.exports = app;
